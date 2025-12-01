@@ -26,4 +26,40 @@ public class StoreRepository {
 
         this.dataManager = dataManager;
     }
+    public Store save(Store store) {
+        return dataManager.persistStore(store);
+    }
+
+    public Optional<Store> findById(String id) {
+        if (id == null || id.isBlank()) {
+            return Optional.empty();
+        }
+        return dataManager.getStoreById(id);
+    }
+
+    public Collection<Store> findAll() {
+        List<Store> stores = dataManager.getAllStores();
+        return stores;
+    }
+
+    public boolean existsById(String id) {
+        if (id == null || id.isBlank()) {
+            return false;
+        }
+        return dataManager.doesStoreExist(id);
+    }
+
+    public void delete(Store store) {
+        if (store == null || store.getId() == null) {
+            return;
+        }
+        dataManager.removeStore(store.getId());
+    }
+
+    public boolean deleteById(String id) {
+        if (id == null || id.isBlank()) {
+            return false;
+        }
+        return dataManager.removeStore(id);
+    }
 }
