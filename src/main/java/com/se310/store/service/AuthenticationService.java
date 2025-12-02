@@ -54,15 +54,27 @@ public class AuthenticationService {
                 return Optional.empty();
             }
 
-            //TODO: Implement User Repository retrieval logic
-            User dummyUser = new User(
-                "dummy@store.com",
-                "dummyPassword123",
-                "Dummy User",
-                UserRole.ADMIN  // Hardcoded as ADMIN for full access
-            );
+            String email = parts[0];
+            String password = parts[1];
 
-            return Optional.of(dummyUser);
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                return Optional.empty();
+            }
+            User user = userOpt.get();
+            String storedPassword = user.getPassword();
+            if (storedPassword == null) {
+                return Optional.empty();
+            }
+
+            boolean matches;
+            if (PasswordEncryption.isEncrypted(storedPassword)) {
+                matches = PasswordEncryption.verify(password, storedPassword);
+            } else {
+                matches = storedPassword.equals(password);
+            }
+
+            return matches ? Optional.of(user) : Optional.empty();
 
         } catch (Exception e) {
             // Invalid format or decoding error
@@ -81,7 +93,19 @@ public class AuthenticationService {
      * @return The created User object
      */
     public User registerUser(String email, String password, String name, UserRole role) {
-        return null;
+        validateRequired(email, "email");
+        validateRequired(password, "password");
+        validateRequired(name, "name");
+
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("User with email " + email + " already exists.");
+        }
+
+        String encryptedPassword = PasswordEncryption.encrypt(password);
+        UserRole assignedRole = role != null ? role : UserRole.USER;
+
+        User newUser = new User(email, encryptedPassword, name, assignedRole);
+        return userRepository.save(newUser);
     }
 
     /**
@@ -93,28 +117,34 @@ public class AuthenticationService {
      * @return The created User object
      */
     public User registerUser(String email, String password, String name) {
-        return null;
+        return registerUser(email, password, name, UserRole.USER);
     }
 
     /**
      * Check if user exists
      */
     public boolean userExists(String email) {
-        return false;
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        return userRepository.existsByEmail(email);
     }
 
     /**
      * Get all users
      */
     public Collection<User> getAllUsers() {
-        return null;
+        return userRepository.findAll();
     }
 
     /**
      * Get user by email
      */
     public User getUserByEmail(String email) {
-        return null;
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        return userRepository.findByEmail(email).orElse(null);
     }
 
     /**
@@ -127,13 +157,43 @@ public class AuthenticationService {
      * @return The updated User object, or null if user not found
      */
     public User updateUser(String email, String password, String name) {
-        return null;
+        
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return null;
+        }
+
+        User user = userOpt.get();
+
+        if (password != null && !password.isBlank()) {
+            String encrypted = PasswordEncryption.encrypt(password);
+            user.setPassword(encrypted);
+        }
+
+        if (name != null && !name.isBlank()) {
+            user.setName(name);
+        }
+
+        return userRepository.save(user);
     }
 
     /**
      * Delete user by email
      */
     public boolean deleteUser(String email) {
-        return false;
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        return userRepository.deleteByEmail(email);
     }
+
+    private void validateRequired(String value, String fieldName) {
+    if (value == null || value.isBlank()) {
+        throw new IllegalArgumentException("Field '" + fieldName + "' is required.");
+    }
+}
 }
