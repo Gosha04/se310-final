@@ -57,6 +57,15 @@ public class StoreService {
      */
     private void loadAllDataFromDatabase() {
         //TODO: Load store data into the maps
+        if (storeRepository == null) {
+            return;
+        }
+        Collection<Store> stores = storeRepository.findAll();
+        for (Store store : stores) {
+            if (store != null && store.getId() != null) {
+                storeMap.put(store.getId(), store);
+            }
+        }
     }
 
     /**
@@ -83,7 +92,9 @@ public class StoreService {
         }
 
         //TODO: Persist Store to database
-
+        if (storeRepository != null) {
+            storeRepository.save(store);
+        }
         return store;
     }
 
@@ -264,6 +275,11 @@ public class StoreService {
             throw new StoreException("Provision Product", "Product Already Exists");
 
         //TODO: Persist to database
+        try {
+            dataManager.saveProduct(productId, name, description, size, category, price, temperature.name());
+        } catch (Exception e) {
+            throw new StoreException("Provision Product", "Failed to save product to database: " + e.getMessage());
+        }
 
         return product;
     }
@@ -287,7 +303,21 @@ public class StoreService {
             throw new StoreException("Provision Customer", "Customer Already Exists");
 
         //TODO: Persist to database
-
+        try {
+            dataManager.saveCustomer(
+                    customerId,
+                    firstName,
+                    lastName,
+                    type.name(),
+                    email,
+                    address,
+                    null,      // store_id
+                    null,      // aisle_number
+                    null       // last_seen
+            );
+        } catch (Exception e) {
+            throw new StoreException("Provision Customer", "Failed to save customer to database: " + e.getMessage());
+        }
         return customer;
     }
 
@@ -342,6 +372,26 @@ public class StoreService {
         }
 
         //TODO: Persist customer location update to database
+        try {
+            Timestamp lastSeenTs = (customer.getLastSeen() != null)
+                    ? new Timestamp(customer.getLastSeen().getTime())
+                    : null;
+
+            dataManager.saveCustomer(
+                    customer.getId(),
+                    customer.getFirstName(),
+                    customer.getLastName(),
+                    customer.getType().name(),
+                    customer.getEmail(),
+                    customer.getAccountAddress(),
+                    customer.getStoreLocation() != null ? customer.getStoreLocation().getStoreId() : null,
+                    customer.getStoreLocation() != null ? customer.getStoreLocation().getAisleId() : null,
+                    lastSeenTs
+            );
+        } catch (Exception e) {
+            throw new StoreException("Update Customer",
+                    "Failed to update customer in database: " + e.getMessage());
+        }
 
         return customer;
     }
@@ -364,6 +414,11 @@ public class StoreService {
             throw new StoreException("Provision Basket", "Basket Already Exists");
 
         //TODO: Persist Basket to database
+        try {
+            dataManager.saveBasket(basketId, null, null);
+        } catch (Exception e) {
+            throw new StoreException("Provision Basket", "Failed to save basket to database: " + e.getMessage());
+        }
 
         return basket;
     }
@@ -525,6 +580,11 @@ public class StoreService {
                 store.addDevice(device);
 
                 //TODO: Persist Device to database
+                try {
+                    dataManager.saveDevice(deviceId, name, deviceType, storeId, aisleNumber);
+                } catch (Exception e) {
+                    throw new StoreException("Provision Device", "Failed to save device to database: " + e.getMessage());
+                }
             }
         }
         return device;
@@ -586,7 +646,9 @@ public class StoreService {
         }
 
         //TODO: Update Store data in database
-
+        if (storeRepository != null) {
+            storeRepository.save(store);
+        }
         return store;
     }
 
@@ -600,5 +662,8 @@ public class StoreService {
         }
 
         //TODO: Delete data from database
+        if (storeRepository != null) {
+            storeRepository.delete(store);
+        }
     }
 }
