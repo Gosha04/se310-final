@@ -15,7 +15,7 @@ import com.se310.store.model.Store;
  * @version 1.0
  * @since   2025-11-11
  */
-public class StoreMapper {
+public class StoreMapper{
 
     //TODO: Implement Data Transfer Object for Store entity
     //TODO: Implement Factory methods for Store DTOs
@@ -23,7 +23,7 @@ public class StoreMapper {
     /**
      * StoreDTO - Data Transfer Object for Store
      */
-    public static class StoreDTO {
+    public static class StoreDTO implements JsonSerializable{
         private String id;
         private String address;
         private String description;
@@ -60,10 +60,13 @@ public class StoreMapper {
         public void setDescription(String description) {
             this.description = description;
         }
-
+        @Override
+        public String toJson() {
+            return JsonHelper.toJson(this);
+        }
         
     }
-    
+
     public static StoreDTO toDTO(Store store) {
             if (store == null) {
                 return null;

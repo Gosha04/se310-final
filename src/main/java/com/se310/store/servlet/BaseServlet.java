@@ -76,6 +76,23 @@ public abstract class BaseServlet extends HttpServlet {
      */
     protected void sendJsonResponse(HttpServletResponse response, Object object, int statusCode) throws IOException {
         //TODO: Implement Template Method Pattern for sending JSON responses
+        response.setStatus(statusCode);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        
+        String json;
+        if (object == null) {
+            json = "";
+        } else if (object instanceof JsonSerializable jsonSerializable) {
+            json = jsonSerializable.toJson();
+        } else {
+            json = JsonHelper.toJson(object);
+        }
+
+        try (PrintWriter writer = response.getWriter()) {
+            writer.write(json);
+            writer.flush();
+    }
     }
 
     /**
@@ -88,6 +105,8 @@ public abstract class BaseServlet extends HttpServlet {
      * @throws IOException If writing fails
      */
     protected void sendErrorResponse(HttpServletResponse response, int statusCode, String message) throws IOException {
+        ErrorResponse error = new ErrorResponse(statusCode, message);
+        sendJsonResponse(response, error, statusCode);
     }
 
     /**
