@@ -43,6 +43,27 @@ public class StoreController extends BaseServlet {
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String storeId = extractResourceId(request);
+        String token = request.getParameter("token");
+
+        if (storeId == null || storeId.isBlank()) {
+            Collection<Store> stores = storeService.getAllStores();
+            var dtoList = StoreMapper.toDTOList(stores);
+            sendJsonResponse(response, dtoList, HttpServletResponse.SC_OK);
+            return;
+        }
+
+        try {
+            Store store = storeService.showStore(storeId, token);
+            StoreDTO storeDTO = StoreMapper.toDTO(store);
+            sendJsonResponse(response, storeDTO, HttpServletResponse.SC_OK);
+
+        } catch (StoreException ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
+        }
+        catch (Exception ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
     }
 
     /**
@@ -51,6 +72,31 @@ public class StoreController extends BaseServlet {
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+        String storeId = request.getParameter("storeId");
+        String name = request.getParameter("name");       
+        String address = request.getParameter("address");
+        String token = request.getParameter("token");
+
+        if (storeId == null || storeId.isBlank()
+                || name == null || name.isBlank()
+                || address == null || address.isBlank()) {
+
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Missing required parameters: storeId, name, and address are required.");
+            return;
+        }
+
+        try {
+            Store store = storeService.provisionStore(storeId, name, address, token);
+            StoreDTO storeDTO = StoreMapper.toDTO(store);
+            sendJsonResponse(response, storeDTO, HttpServletResponse.SC_CREATED);
+
+        } catch (StoreException ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
+        } catch (Exception ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
     }
 
     /**
@@ -59,6 +105,34 @@ public class StoreController extends BaseServlet {
      */
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+        String storeId = extractResourceId(request);
+
+        if (storeId == null || storeId.isBlank()) {
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "Missing storeId in the URL path.");
+            return;
+        }
+        String description = request.getParameter("description");
+        String address = request.getParameter("address");
+
+        if ((description == null || description.isBlank())
+                && (address == null || address.isBlank())) {
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,
+                    "At least one of description or address parameters must be provided for update.");
+            return;
+        }
+
+        try {
+            Store store = storeService.updateStore(storeId, description, address);
+            StoreDTO storeDTO = StoreMapper.toDTO(store);
+            sendJsonResponse(response, storeDTO, HttpServletResponse.SC_OK);
+
+        } catch (StoreException ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
+        } catch (Exception ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unexpectd error updating store");
+        }
+
     }
 
     /**
@@ -67,5 +141,22 @@ public class StoreController extends BaseServlet {
      */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+        String storeId = extractResourceId(request);
+
+        if (storeId == null || storeId.isBlank()) {
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "Missing storeId in the URL path.");
+            return;
+        }
+
+        try {
+            storeService.deleteStore(storeId);
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+
+        } catch (StoreException ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());
+        } catch (Exception ex) {
+            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unexpected error deleting store");
+        }
     }
 }
