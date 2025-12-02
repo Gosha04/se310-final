@@ -1,5 +1,8 @@
 package com.se310.store.dto;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
+import java.util.List;
 import com.se310.store.model.User;
 import com.se310.store.model.UserRole;
 
@@ -56,6 +59,67 @@ public class UserMapper {
 
         public void setRole(String role) {
             this.role = role;
+        }
+    }
+    public static UserDTO toDTO(User user) {
+        if (user == null) {
+            return null;
+        }
+        return new UserDTO(
+                user.getEmail(),
+                user.getName(),
+                user.getRole() != null ? user.getRole().name() : null
+        );
+    }
+    public static List<UserDTO> toDTOList(Collection<User> users) {
+        if (users == null) {
+            return List.of();
+        }
+        return users.stream()
+                .map(UserMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    public static User fromDTO(UserDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+
+        UserRole role = UserRole.USER;
+        if (dto.getRole() != null && !dto.getRole().isBlank()) {
+            try {
+                role = UserRole.valueOf(dto.getRole().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                role = UserRole.USER;
+            }
+        }
+
+        return new User(
+                dto.getEmail(),
+                null, 
+                dto.getName(),
+                role
+        );
+
+    }
+    public static void updateUserFromDTO(User user, UserDTO dto) {
+        if (user == null || dto == null) {
+            return;
+        }
+
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
+            user.setEmail(dto.getEmail());
+        }
+
+        if (dto.getName() != null && !dto.getName().isBlank()) {
+            user.setName(dto.getName());
+        }
+
+        if (dto.getRole() != null && !dto.getRole().isBlank()) {
+            try {
+                user.setRole(UserRole.valueOf(dto.getRole().toUpperCase()));
+            } catch (IllegalArgumentException ignored) {
+            }
         }
     }
 }

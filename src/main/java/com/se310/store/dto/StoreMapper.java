@@ -1,5 +1,9 @@
 package com.se310.store.dto;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.se310.store.model.Store;
 
 /**
@@ -56,5 +60,44 @@ public class StoreMapper {
         public void setDescription(String description) {
             this.description = description;
         }
+
+        
     }
+    
+    public static StoreDTO toDTO(Store store) {
+            if (store == null) {
+                return null;
+            }
+            return new StoreDTO(
+                    store.getId(),
+                    store.getAddress(),
+                    store.getDescription()
+            );
+        }
+        public static List<StoreDTO> toDTOList(Collection<Store> stores) {
+            if (stores == null) {
+                return List.of();
+            }
+            return stores.stream()
+                .map(StoreMapper::toDTO)
+                .collect(Collectors.toList());
+        }
+        
+        public static Store fromDTO(StoreDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        return new Store(
+                dto.getId(),
+                dto.getAddress(),
+                dto.getDescription()
+        );
+        }
+        public static void updateStoreFromDTO(Store store, StoreDTO dto) {
+            if (store == null || dto == null) {
+                return;
+            }
+            store.setAddress(dto.getAddress());
+            store.setDescription(dto.getDescription());
+        }
 }
