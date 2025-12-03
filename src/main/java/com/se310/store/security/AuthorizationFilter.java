@@ -55,7 +55,14 @@ public class AuthorizationFilter implements Filter {
         }
 
         //TODO: Check if user has ADMIN role
-
+        if (!user.isAdmin()) {
+            // User is authenticated but not authorized
+            httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            httpResponse.setContentType("application/json");
+            httpResponse.setCharacterEncoding("UTF-8");
+            httpResponse.getWriter().write("{\"error\": \"Forbidden - ADMIN role required\"}");
+            return;
+        }
         // User is authorized - continue with the filter chain
         chain.doFilter(request, response);
     }
