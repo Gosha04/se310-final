@@ -169,6 +169,11 @@ public class SmartStoreApplication {
         context.addFilterMap(storeAuthFilterMap);
 
         //TODO: Create and register Authorization Filter
+        AuthorizationFilter authorizationFilter = new AuthorizationFilter();
+        FilterDef authorizationFilterDef = new FilterDef();
+        authorizationFilterDef.setFilterName("authorizationFilter");
+        authorizationFilterDef.setFilter(authorizationFilter);
+        context.addFilterDef(authorizationFilterDef);
 
         //TODO: Configure Authentication Filter for User API
         logger.info("Configuring authentication filter for User API...");
@@ -180,7 +185,10 @@ public class SmartStoreApplication {
         context.addFilterMap(userAuthFilterMap);
 
         //TODO: Map Authorization filter to User API
-
+        FilterMap userAuthzFilterMap = new FilterMap();
+        userAuthzFilterMap.setFilterName("authorizationFilter");
+        userAuthzFilterMap.addURLPattern("/api/v1/users/*");
+        context.addFilterMap(userAuthzFilterMap);
         // Step 6: Load sample data
         logger.info("Loading sample data...");
         loadSampleData(userService, storeService);
