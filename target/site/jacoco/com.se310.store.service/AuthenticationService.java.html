@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticationService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">final</a> &gt; <a href="index.source.html" class="el_package">com.se310.store.service</a> &gt; <span class="el_source">AuthenticationService.java</span></div><h1>AuthenticationService.java</h1><pre class="source lang-java linenums">package com.se310.store.service;
+
+import com.se310.store.model.User;
+import com.se310.store.model.UserRole;
+import com.se310.store.repository.UserRepository;
+import com.se310.store.security.PasswordEncryption;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Optional;
+
+/**
+ * This class is responsible for authenticating users and managing user data.
+ * Handles password encryption/decryption for secure password storage.
+ *
+ * @author  Sergey L. Sundukovskiy
+ * @version 1.0
+ * @since 2025-09-25
+ **/
+public class AuthenticationService {
+
+    //TODO: Implement authentication service for User operations
+    //TODO: Implement authorizations service for Store operations
+    //TODO: Implement management of User related data in the persistent storage
+    //TODO: Implement Service Layer Pattern
+
+    private final UserRepository userRepository;
+
+<span class="nc" id="L30">    public AuthenticationService(UserRepository userRepository) {</span>
+<span class="nc" id="L31">        this.userRepository = userRepository;</span>
+<span class="nc" id="L32">    }</span>
+
+    /**
+     * Authenticates a user using HTTP Basic Authentication.
+     *
+     * @param authHeader The Authorization header value (e.g., &quot;Basic base64(email:password)&quot;)
+     * @return Optional containing the authenticated User, or empty if authentication fails
+     */
+    public Optional&lt;User&gt; authenticateBasic(String authHeader) {
+<span class="nc bnc" id="L41" title="All 4 branches missed.">        if (authHeader == null || !authHeader.startsWith(&quot;Basic &quot;)) {</span>
+<span class="nc" id="L42">            return Optional.empty();</span>
+        }
+
+        try {
+            //TODO: Implement User Authentication logic
+<span class="nc" id="L47">            String base64Credentials = authHeader.substring(&quot;Basic &quot;.length()).trim();</span>
+<span class="nc" id="L48">            byte[] decodedBytes = Base64.getDecoder().decode(base64Credentials);</span>
+<span class="nc" id="L49">            String credentials = new String(decodedBytes, StandardCharsets.UTF_8);</span>
+
+            // Split credentials into email and password
+<span class="nc" id="L52">            String[] parts = credentials.split(&quot;:&quot;, 2);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            if (parts.length != 2) {</span>
+<span class="nc" id="L54">                return Optional.empty();</span>
+            }
+
+<span class="nc" id="L57">            String email = parts[0];</span>
+<span class="nc" id="L58">            String password = parts[1];</span>
+
+<span class="nc" id="L60">            Optional&lt;User&gt; userOpt = userRepository.findByEmail(email);</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            if (userOpt.isEmpty()) {</span>
+<span class="nc" id="L62">                return Optional.empty();</span>
+            }
+<span class="nc" id="L64">            User user = userOpt.get();</span>
+<span class="nc" id="L65">            String storedPassword = user.getPassword();</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">            if (storedPassword == null) {</span>
+<span class="nc" id="L67">                return Optional.empty();</span>
+            }
+
+            boolean matches;
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (PasswordEncryption.isEncrypted(storedPassword)) {</span>
+<span class="nc" id="L72">                matches = PasswordEncryption.verify(password, storedPassword);</span>
+            } else {
+<span class="nc" id="L74">                matches = storedPassword.equals(password);</span>
+            }
+
+<span class="nc bnc" id="L77" title="All 2 branches missed.">            return matches ? Optional.of(user) : Optional.empty();</span>
+
+<span class="nc" id="L79">        } catch (Exception e) {</span>
+            // Invalid format or decoding error
+<span class="nc" id="L81">            return Optional.empty();</span>
+        }
+    }
+
+    /**
+     * Register a new user with a specific role.
+     * Password is encrypted before storage for security.
+     *
+     * @param email User's email address
+     * @param password User's password (plain text, will be encrypted)
+     * @param name User's display name
+     * @param role User's role (ADMIN, MANAGER, or USER)
+     * @return The created User object
+     */
+    public User registerUser(String email, String password, String name, UserRole role) {
+<span class="nc" id="L96">        validateRequired(email, &quot;email&quot;);</span>
+<span class="nc" id="L97">        validateRequired(password, &quot;password&quot;);</span>
+<span class="nc" id="L98">        validateRequired(name, &quot;name&quot;);</span>
+
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if (userRepository.existsByEmail(email)) {</span>
+<span class="nc" id="L101">            throw new IllegalArgumentException(&quot;User with email &quot; + email + &quot; already exists.&quot;);</span>
+        }
+
+<span class="nc" id="L104">        String encryptedPassword = PasswordEncryption.encrypt(password);</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        UserRole assignedRole = role != null ? role : UserRole.USER;</span>
+
+<span class="nc" id="L107">        User newUser = new User(email, encryptedPassword, name, assignedRole);</span>
+<span class="nc" id="L108">        return userRepository.save(newUser);</span>
+    }
+
+    /**
+     * Register a new user with default USER role
+     *
+     * @param email User's email address
+     * @param password User's password
+     * @param name User's display name
+     * @return The created User object
+     */
+    public User registerUser(String email, String password, String name) {
+<span class="nc" id="L120">        return registerUser(email, password, name, UserRole.USER);</span>
+    }
+
+    /**
+     * Check if user exists
+     */
+    public boolean userExists(String email) {
+<span class="nc bnc" id="L127" title="All 4 branches missed.">        if (email == null || email.isBlank()) {</span>
+<span class="nc" id="L128">            return false;</span>
+        }
+<span class="nc" id="L130">        return userRepository.existsByEmail(email);</span>
+    }
+
+    /**
+     * Get all users
+     */
+    public Collection&lt;User&gt; getAllUsers() {
+<span class="nc" id="L137">        return userRepository.findAll();</span>
+    }
+
+    /**
+     * Get user by email
+     */
+    public User getUserByEmail(String email) {
+<span class="nc bnc" id="L144" title="All 4 branches missed.">        if (email == null || email.isBlank()) {</span>
+<span class="nc" id="L145">            return null;</span>
+        }
+<span class="nc" id="L147">        return userRepository.findByEmail(email).orElse(null);</span>
+    }
+
+    /**
+     * Update user information.
+     * Password is encrypted before storage if provided.
+     *
+     * @param email User's email address
+     * @param password New password (plain text, will be encrypted), or null to keep current
+     * @param name New name, or null to keep current
+     * @return The updated User object, or null if user not found
+     */
+    public User updateUser(String email, String password, String name) {
+        
+<span class="nc bnc" id="L161" title="All 4 branches missed.">        if (email == null || email.isBlank()) {</span>
+<span class="nc" id="L162">            return null;</span>
+        }
+
+<span class="nc" id="L165">        Optional&lt;User&gt; userOpt = userRepository.findByEmail(email);</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (userOpt.isEmpty()) {</span>
+<span class="nc" id="L167">            return null;</span>
+        }
+
+<span class="nc" id="L170">        User user = userOpt.get();</span>
+
+<span class="nc bnc" id="L172" title="All 4 branches missed.">        if (password != null &amp;&amp; !password.isBlank()) {</span>
+<span class="nc" id="L173">            String encrypted = PasswordEncryption.encrypt(password);</span>
+<span class="nc" id="L174">            user.setPassword(encrypted);</span>
+        }
+
+<span class="nc bnc" id="L177" title="All 4 branches missed.">        if (name != null &amp;&amp; !name.isBlank()) {</span>
+<span class="nc" id="L178">            user.setName(name);</span>
+        }
+
+<span class="nc" id="L181">        return userRepository.save(user);</span>
+    }
+
+    /**
+     * Delete user by email
+     */
+    public boolean deleteUser(String email) {
+<span class="nc bnc" id="L188" title="All 4 branches missed.">        if (email == null || email.isBlank()) {</span>
+<span class="nc" id="L189">            return false;</span>
+        }
+<span class="nc" id="L191">        return userRepository.deleteByEmail(email);</span>
+    }
+
+    private void validateRequired(String value, String fieldName) {
+<span class="nc bnc" id="L195" title="All 4 branches missed.">    if (value == null || value.isBlank()) {</span>
+<span class="nc" id="L196">        throw new IllegalArgumentException(&quot;Field '&quot; + fieldName + &quot;' is required.&quot;);</span>
+    }
+<span class="nc" id="L198">}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

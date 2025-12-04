@@ -1,0 +1,639 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StoreManagementCLIClient.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">final</a> &gt; <a href="index.source.html" class="el_package">com.se310.store.cli</a> &gt; <span class="el_source">StoreManagementCLIClient.java</span></div><h1>StoreManagementCLIClient.java</h1><pre class="source lang-java linenums">package com.se310.store.cli;
+
+import com.se310.store.config.ConfigLoader;
+import com.se310.store.data.DataManager;
+import com.se310.store.model.*;
+import com.se310.store.repository.UserRepository;
+import com.se310.store.service.AuthenticationService;
+import com.se310.store.service.StoreService;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.Scanner;
+
+/**
+ * StoreManagementCLIClient - Command-line interface for Store Management System
+ *
+ * This CLI client provides a hybrid interface:
+ * - Authentication uses AuthenticationService (direct service access)
+ * - Store and User operations use REST API (via HTTP)
+ * - All other operations (Products, Customers, etc.) use StoreService directly
+ *
+ * This demonstrates both API-based and direct service access patterns.
+ *
+ * @author  Sergey L. Sundukovskiy
+ * @version 1.0
+ * @since   2025-11-11
+ */
+<span class="nc" id="L34">public class StoreManagementCLIClient {</span>
+
+    //TODO: Implement View for Store operations, part of the MVC Pattern
+
+<span class="nc" id="L38">    private static final String BASE_URL = ConfigLoader.getApiBaseUrl();</span>
+<span class="nc" id="L39">    private static String authHeader = null;</span>
+<span class="nc" id="L40">    private static final Scanner scanner = new Scanner(System.in);</span>
+
+    // Direct service access
+    private static StoreService storeService;
+    private static AuthenticationService authenticationService;
+
+    public static void main(String[] args) {
+<span class="nc" id="L47">        System.out.println(&quot;===============================================&quot;);</span>
+<span class="nc" id="L48">        System.out.println(&quot;|  Smart Store Management CLI Client        |&quot;);</span>
+<span class="nc" id="L49">        System.out.println(&quot;|  (Hybrid: API + Direct Service Access)    |&quot;);</span>
+<span class="nc" id="L50">        System.out.println(&quot;===============================================&quot;);</span>
+<span class="nc" id="L51">        System.out.println();</span>
+
+        // Initialize local services
+<span class="nc" id="L54">        initializeServices();</span>
+
+        // Authenticate user using AuthenticationService
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (!authenticate()) {</span>
+<span class="nc" id="L58">            System.out.println(&quot;Authentication failed. Exiting...&quot;);</span>
+<span class="nc" id="L59">            return;</span>
+        }
+
+        // Main menu loop
+<span class="nc" id="L63">        boolean running = true;</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        while (running) {</span>
+<span class="nc" id="L65">            printMainMenu();</span>
+<span class="nc" id="L66">            String choice = scanner.nextLine().trim();</span>
+
+<span class="nc bnc" id="L68" title="All 8 branches missed.">            switch (choice) {</span>
+                case &quot;1&quot;:
+<span class="nc" id="L70">                    manageStores();</span>
+<span class="nc" id="L71">                    break;</span>
+                case &quot;2&quot;:
+<span class="nc" id="L73">                    manageUsers();</span>
+<span class="nc" id="L74">                    break;</span>
+                case &quot;3&quot;:
+<span class="nc" id="L76">                    manageProducts();</span>
+<span class="nc" id="L77">                    break;</span>
+                case &quot;4&quot;:
+<span class="nc" id="L79">                    manageCustomers();</span>
+<span class="nc" id="L80">                    break;</span>
+                case &quot;5&quot;:
+<span class="nc" id="L82">                    viewDocumentation();</span>
+<span class="nc" id="L83">                    break;</span>
+                case &quot;6&quot;:
+<span class="nc" id="L85">                    logout();</span>
+<span class="nc" id="L86">                    break;</span>
+                case &quot;0&quot;:
+<span class="nc" id="L88">                    running = false;</span>
+<span class="nc" id="L89">                    System.out.println(&quot;Goodbye!&quot;);</span>
+<span class="nc" id="L90">                    break;</span>
+                default:
+<span class="nc" id="L92">                    System.out.println(&quot;Invalid choice. Please try again.&quot;);</span>
+            }
+<span class="nc" id="L94">        }</span>
+
+<span class="nc" id="L96">        scanner.close();</span>
+<span class="nc" id="L97">    }</span>
+
+    /**
+     * Initialize local services for direct access
+     */
+    private static void initializeServices() {
+        try {
+            // Initialize DataManager and repositories
+<span class="nc" id="L105">            DataManager dataManager = DataManager.getInstance();</span>
+<span class="nc" id="L106">            UserRepository userRepository = new UserRepository(dataManager);</span>
+
+            // Initialize services
+<span class="nc" id="L109">            storeService = new StoreService();</span>
+<span class="nc" id="L110">            authenticationService = new AuthenticationService(userRepository);</span>
+
+<span class="nc" id="L112">            System.out.println(&quot;[OK] Local services initialized&quot;);</span>
+<span class="nc" id="L113">            System.out.println();</span>
+<span class="nc" id="L114">        } catch (Exception e) {</span>
+<span class="nc" id="L115">            System.err.println(&quot;Error initializing services: &quot; + e.getMessage());</span>
+<span class="nc" id="L116">            System.exit(1);</span>
+<span class="nc" id="L117">        }</span>
+<span class="nc" id="L118">    }</span>
+
+    /**
+     * Authenticate user using AuthenticationService
+     */
+    private static boolean authenticate() {
+<span class="nc" id="L124">        System.out.println(&quot;Please login&quot;);</span>
+<span class="nc" id="L125">        System.out.print(&quot;Email: &quot;);</span>
+<span class="nc" id="L126">        String email = scanner.nextLine().trim();</span>
+<span class="nc" id="L127">        System.out.print(&quot;Password: &quot;);</span>
+<span class="nc" id="L128">        String password = scanner.nextLine().trim();</span>
+
+        // Create Basic Auth header for both service and API usage
+<span class="nc" id="L131">        String credentials = email + &quot;:&quot; + password;</span>
+<span class="nc" id="L132">        authHeader = &quot;Basic &quot; + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));</span>
+
+        // Authenticate using AuthenticationService
+        try {
+<span class="nc" id="L136">            Optional&lt;User&gt; userOpt = authenticationService.authenticateBasic(authHeader);</span>
+
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            if (userOpt.isPresent()) {</span>
+<span class="nc" id="L139">                User user = userOpt.get();</span>
+<span class="nc" id="L140">                System.out.println(&quot;[OK] Authentication successful!&quot;);</span>
+<span class="nc" id="L141">                System.out.println(&quot;  Welcome, &quot; + user.getName() + &quot; (&quot; + user.getRole() + &quot;)&quot;);</span>
+<span class="nc" id="L142">                System.out.println();</span>
+<span class="nc" id="L143">                return true;</span>
+            } else {
+<span class="nc" id="L145">                System.out.println(&quot;[X] Authentication failed: Invalid credentials&quot;);</span>
+<span class="nc" id="L146">                return false;</span>
+            }
+<span class="nc" id="L148">        } catch (Exception e) {</span>
+<span class="nc" id="L149">            System.out.println(&quot;[X] Authentication failed: &quot; + e.getMessage());</span>
+<span class="nc" id="L150">            return false;</span>
+        }
+    }
+
+    private static void printMainMenu() {
+<span class="nc" id="L155">        System.out.println(&quot;\n===============================================&quot;);</span>
+<span class="nc" id="L156">        System.out.println(&quot;|            MAIN MENU                      |&quot;);</span>
+<span class="nc" id="L157">        System.out.println(&quot;===============================================&quot;);</span>
+<span class="nc" id="L158">        System.out.println(&quot;|  1. Manage Stores (via API)               |&quot;);</span>
+<span class="nc" id="L159">        System.out.println(&quot;|  2. Manage Users (via API)                |&quot;);</span>
+<span class="nc" id="L160">        System.out.println(&quot;|  3. Manage Products (via Service)         |&quot;);</span>
+<span class="nc" id="L161">        System.out.println(&quot;|  4. Manage Customers (via Service)        |&quot;);</span>
+<span class="nc" id="L162">        System.out.println(&quot;|  5. View API Documentation                |&quot;);</span>
+<span class="nc" id="L163">        System.out.println(&quot;|  6. Logout (Switch User)                  |&quot;);</span>
+<span class="nc" id="L164">        System.out.println(&quot;|  0. Exit                                  |&quot;);</span>
+<span class="nc" id="L165">        System.out.println(&quot;===============================================&quot;);</span>
+<span class="nc" id="L166">        System.out.print(&quot;Enter your choice: &quot;);</span>
+<span class="nc" id="L167">    }</span>
+
+    /**
+     * Store operations - Uses REST API
+     */
+    private static void manageStores() {
+<span class="nc" id="L173">        System.out.println(&quot;\n=== Store Management (via REST API) ===&quot;);</span>
+<span class="nc" id="L174">        System.out.println(&quot;1. List all stores&quot;);</span>
+<span class="nc" id="L175">        System.out.println(&quot;2. View store details&quot;);</span>
+<span class="nc" id="L176">        System.out.println(&quot;3. Create new store&quot;);</span>
+<span class="nc" id="L177">        System.out.println(&quot;4. Update store&quot;);</span>
+<span class="nc" id="L178">        System.out.println(&quot;5. Delete store&quot;);</span>
+<span class="nc" id="L179">        System.out.println(&quot;0. Back to main menu&quot;);</span>
+<span class="nc" id="L180">        System.out.print(&quot;Enter your choice: &quot;);</span>
+
+<span class="nc" id="L182">        String choice = scanner.nextLine().trim();</span>
+
+         try {
+<span class="nc bnc" id="L185" title="All 7 branches missed.">            switch (choice) {</span>
+                case &quot;1&quot;: {
+<span class="nc" id="L187">                    String response = sendRequest(&quot;GET&quot;, &quot;/stores&quot;, null);</span>
+<span class="nc" id="L188">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L189">                    System.out.println(response);</span>
+<span class="nc" id="L190">                    break;</span>
+                }
+                case &quot;2&quot;: {
+<span class="nc" id="L193">                    System.out.print(&quot;Enter store ID: &quot;);</span>
+<span class="nc" id="L194">                    String storeId = scanner.nextLine().trim();</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">                    if (storeId.isEmpty()) {</span>
+<span class="nc" id="L196">                        System.out.println(&quot;Store ID is required.&quot;);</span>
+<span class="nc" id="L197">                        break;</span>
+                    }
+<span class="nc" id="L199">                    String response = sendRequest(&quot;GET&quot;, &quot;/stores/&quot; + storeId, null);</span>
+<span class="nc" id="L200">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L201">                    System.out.println(response);</span>
+<span class="nc" id="L202">                    break;</span>
+                }
+                case &quot;3&quot;: {
+<span class="nc" id="L205">                    System.out.print(&quot;Enter store ID: &quot;);</span>
+<span class="nc" id="L206">                    String storeId = scanner.nextLine().trim();</span>
+<span class="nc" id="L207">                    System.out.print(&quot;Enter store name/description: &quot;);</span>
+<span class="nc" id="L208">                    String name = scanner.nextLine().trim();</span>
+<span class="nc" id="L209">                    System.out.print(&quot;Enter store address: &quot;);</span>
+<span class="nc" id="L210">                    String address = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L212">                    String endpoint = &quot;/stores?storeId=&quot; + storeId +</span>
+                            &quot;&amp;name=&quot; + name +
+                            &quot;&amp;address=&quot; + address;
+
+<span class="nc" id="L216">                    String response = sendRequest(&quot;POST&quot;, endpoint, null);</span>
+<span class="nc" id="L217">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L218">                    System.out.println(response);</span>
+<span class="nc" id="L219">                    break;</span>
+                }
+                case &quot;4&quot;: {
+<span class="nc" id="L222">                    System.out.print(&quot;Enter store ID to update: &quot;);</span>
+<span class="nc" id="L223">                    String storeId = scanner.nextLine().trim();</span>
+<span class="nc" id="L224">                    System.out.print(&quot;Enter new description (or leave blank to keep current): &quot;);</span>
+<span class="nc" id="L225">                    String description = scanner.nextLine().trim();</span>
+<span class="nc" id="L226">                    System.out.print(&quot;Enter new address (or leave blank to keep current): &quot;);</span>
+<span class="nc" id="L227">                    String address = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L229">                    StringBuilder endpoint = new StringBuilder(&quot;/stores/&quot; + storeId + &quot;?&quot;);</span>
+<span class="nc" id="L230">                    boolean firstParam = true;</span>
+
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                    if (!description.isEmpty()) {</span>
+<span class="nc" id="L233">                        endpoint.append(&quot;description=&quot;).append(description);</span>
+<span class="nc" id="L234">                        firstParam = false;</span>
+                    }
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                    if (!address.isEmpty()) {</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                        if (!firstParam) {</span>
+<span class="nc" id="L238">                            endpoint.append(&quot;&amp;&quot;);</span>
+                        }
+<span class="nc" id="L240">                        endpoint.append(&quot;address=&quot;).append(address);</span>
+                    }
+
+<span class="nc" id="L243">                    String response = sendRequest(&quot;PUT&quot;, endpoint.toString(), null);</span>
+<span class="nc" id="L244">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L245">                    System.out.println(response);</span>
+<span class="nc" id="L246">                    break;</span>
+                }
+                case &quot;5&quot;: {
+<span class="nc" id="L249">                    System.out.print(&quot;Enter store ID to delete: &quot;);</span>
+<span class="nc" id="L250">                    String storeId = scanner.nextLine().trim();</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">                    if (storeId.isEmpty()) {</span>
+<span class="nc" id="L252">                        System.out.println(&quot;Store ID is required.&quot;);</span>
+<span class="nc" id="L253">                        break;</span>
+                    }
+
+<span class="nc" id="L256">                    String response = sendRequest(&quot;DELETE&quot;, &quot;/stores/&quot; + storeId, null);</span>
+<span class="nc" id="L257">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L258">                    System.out.println(response);</span>
+<span class="nc" id="L259">                    break;</span>
+                }
+                case &quot;0&quot;:
+<span class="nc" id="L262">                    return;</span>
+                default:
+<span class="nc" id="L264">                    System.out.println(&quot;Invalid choice. Returning to main menu.&quot;);</span>
+            }
+<span class="nc" id="L266">        } catch (Exception e) {</span>
+<span class="nc" id="L267">            System.out.println(&quot;Error calling Store API: &quot; + e.getMessage());</span>
+<span class="nc" id="L268">        }</span>
+<span class="nc" id="L269">    }</span>
+
+    /**
+     * User operations - Uses REST API
+     */
+    private static void manageUsers() {
+<span class="nc" id="L275">        System.out.println(&quot;\n=== User Management (via REST API) ===&quot;);</span>
+<span class="nc" id="L276">        System.out.println(&quot;1. List all users&quot;);</span>
+<span class="nc" id="L277">        System.out.println(&quot;2. View user details&quot;);</span>
+<span class="nc" id="L278">        System.out.println(&quot;3. Register new user&quot;);</span>
+<span class="nc" id="L279">        System.out.println(&quot;0. Back to main menu&quot;);</span>
+<span class="nc" id="L280">        System.out.print(&quot;Enter your choice: &quot;);</span>
+
+<span class="nc" id="L282">        String choice = scanner.nextLine().trim();</span>
+        
+        try {
+<span class="nc bnc" id="L285" title="All 5 branches missed.">            switch (choice) {</span>
+                case &quot;1&quot;: {
+<span class="nc" id="L287">                    String response = sendRequest(&quot;GET&quot;, &quot;/users&quot;, null);</span>
+<span class="nc" id="L288">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L289">                    System.out.println(response);</span>
+<span class="nc" id="L290">                    break;</span>
+                }
+                case &quot;2&quot;: {
+<span class="nc" id="L293">                    System.out.print(&quot;Enter user email: &quot;);</span>
+<span class="nc" id="L294">                    String email = scanner.nextLine().trim();</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">                    if (email.isEmpty()) {</span>
+<span class="nc" id="L296">                        System.out.println(&quot;Email is required.&quot;);</span>
+<span class="nc" id="L297">                        break;</span>
+                    }
+
+<span class="nc" id="L300">                    String response = sendRequest(&quot;GET&quot;, &quot;/users/&quot; + email, null);</span>
+<span class="nc" id="L301">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L302">                    System.out.println(response);</span>
+<span class="nc" id="L303">                    break;</span>
+                }
+                case &quot;3&quot;: {
+<span class="nc" id="L306">                    System.out.print(&quot;Enter email: &quot;);</span>
+<span class="nc" id="L307">                    String email = scanner.nextLine().trim();</span>
+<span class="nc" id="L308">                    System.out.print(&quot;Enter password: &quot;);</span>
+<span class="nc" id="L309">                    String password = scanner.nextLine().trim();</span>
+<span class="nc" id="L310">                    System.out.print(&quot;Enter name: &quot;);</span>
+<span class="nc" id="L311">                    String name = scanner.nextLine().trim();</span>
+<span class="nc" id="L312">                    System.out.print(&quot;Enter role (ADMIN / MANAGER / USER, leave blank for USER): &quot;);</span>
+<span class="nc" id="L313">                    String role = scanner.nextLine().trim();</span>
+
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                    if (role.isEmpty()) {</span>
+<span class="nc" id="L316">                        role = &quot;USER&quot;;</span>
+                    }
+
+<span class="nc" id="L319">                    String endpoint = &quot;/users?email=&quot; + email +</span>
+                            &quot;&amp;password=&quot; + password +
+                            &quot;&amp;name=&quot; + name +
+                            &quot;&amp;role=&quot; + role;
+
+<span class="nc" id="L324">                    String response = sendRequest(&quot;POST&quot;, endpoint, null);</span>
+<span class="nc" id="L325">                    System.out.println(&quot;\n[RESPONSE]&quot;);</span>
+<span class="nc" id="L326">                    System.out.println(response);</span>
+<span class="nc" id="L327">                    break;</span>
+                }
+                case &quot;0&quot;:
+<span class="nc" id="L330">                    return;</span>
+                default:
+<span class="nc" id="L332">                    System.out.println(&quot;Invalid choice. Returning to main menu.&quot;);</span>
+            }
+<span class="nc" id="L334">        } catch (Exception e) {</span>
+<span class="nc" id="L335">            System.out.println(&quot;Error calling User API: &quot; + e.getMessage());</span>
+<span class="nc" id="L336">        }</span>
+<span class="nc" id="L337">    }</span>
+
+    /**
+     * Product operations - Uses StoreService directly
+     */
+    private static void manageProducts() {
+<span class="nc" id="L343">        System.out.println(&quot;\n=== Product Management (via StoreService) ===&quot;);</span>
+<span class="nc" id="L344">        System.out.println(&quot;1. View product&quot;);</span>
+<span class="nc" id="L345">        System.out.println(&quot;2. Create new product&quot;);</span>
+<span class="nc" id="L346">        System.out.println(&quot;0. Back to main menu&quot;);</span>
+<span class="nc" id="L347">        System.out.print(&quot;Enter your choice: &quot;);</span>
+
+<span class="nc" id="L349">        String choice = scanner.nextLine().trim();</span>
+        
+<span class="nc bnc" id="L351" title="All 4 branches missed.">        switch (choice) {</span>
+        case &quot;1&quot;: {
+<span class="nc" id="L353">            System.out.print(&quot;Enter product ID: &quot;);</span>
+<span class="nc" id="L354">            String productId = scanner.nextLine().trim();</span>
+
+<span class="nc bnc" id="L356" title="All 2 branches missed.">            if (productId.isEmpty()) {</span>
+<span class="nc" id="L357">                System.out.println(&quot;Product ID is required.&quot;);</span>
+<span class="nc" id="L358">                return;</span>
+            }
+
+            try {
+<span class="nc" id="L362">                Product product = storeService.showProduct(productId, authHeader);</span>
+
+<span class="nc" id="L364">                System.out.println(&quot;\nProduct found:&quot;);</span>
+<span class="nc" id="L365">                System.out.println(&quot;  ID:          &quot; + product.getId());</span>
+<span class="nc" id="L366">                System.out.println(&quot;  Name:        &quot; + product.getName());</span>
+<span class="nc" id="L367">                System.out.println(&quot;  Description: &quot; + product.getDescription());</span>
+<span class="nc" id="L368">                System.out.println(&quot;  Size:        &quot; + product.getSize());</span>
+<span class="nc" id="L369">                System.out.println(&quot;  Category:    &quot; + product.getCategory());</span>
+<span class="nc" id="L370">                System.out.println(&quot;  Price:       &quot; + product.getPrice());</span>
+<span class="nc" id="L371">                System.out.println(&quot;  Temperature: &quot; + product.getTemperature());</span>
+<span class="nc" id="L372">            } catch (StoreException e) {</span>
+<span class="nc" id="L373">                System.out.println(&quot;&quot; + e.getAction() + &quot; failed: &quot; + e.getReason());</span>
+<span class="nc" id="L374">            } catch (Exception e) {</span>
+<span class="nc" id="L375">                System.out.println(&quot;Error viewing product: &quot; + e.getMessage());</span>
+<span class="nc" id="L376">            }</span>
+<span class="nc" id="L377">            break;</span>
+        }
+
+        case &quot;2&quot;: {
+<span class="nc" id="L381">            System.out.print(&quot;Enter product ID: &quot;);</span>
+<span class="nc" id="L382">            String productId = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L384">            System.out.print(&quot;Enter product name: &quot;);</span>
+<span class="nc" id="L385">            String name = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L387">            System.out.print(&quot;Enter product description: &quot;);</span>
+<span class="nc" id="L388">            String description = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L390">            System.out.print(&quot;Enter product size: &quot;);</span>
+<span class="nc" id="L391">            String size = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L393">            System.out.print(&quot;Enter product category: &quot;);</span>
+<span class="nc" id="L394">            String category = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L396">            System.out.print(&quot;Enter product price: &quot;);</span>
+<span class="nc" id="L397">            String priceStr = scanner.nextLine().trim();</span>
+
+            double price;
+            try {
+<span class="nc" id="L401">                price = Double.parseDouble(priceStr);</span>
+<span class="nc" id="L402">            } catch (NumberFormatException e) {</span>
+<span class="nc" id="L403">                System.out.println(&quot;Invalid price. Please enter a numeric value.&quot;);</span>
+<span class="nc" id="L404">                return;</span>
+<span class="nc" id="L405">            }</span>
+
+<span class="nc" id="L407">            System.out.print(&quot;Enter product temperature (frozen, refrigerated, ambient, warm, hot): &quot;);</span>
+<span class="nc" id="L408">            String tempStr = scanner.nextLine().trim();</span>
+
+            Temperature temperature;
+            try {
+<span class="nc" id="L412">                temperature = Temperature.valueOf(tempStr.toLowerCase());</span>
+<span class="nc" id="L413">            } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L414">                System.out.println(&quot;Invalid temperature. Valid values: frozen, refrigerated, ambient, warm, hot&quot;);</span>
+<span class="nc" id="L415">                return;</span>
+<span class="nc" id="L416">            }</span>
+
+            try {
+<span class="nc" id="L419">                Product product = storeService.provisionProduct(</span>
+                        productId,
+                        name,
+                        description,
+                        size,
+                        category,
+                        price,
+                        temperature,
+                        authHeader
+                );
+
+<span class="nc" id="L430">                System.out.println(&quot;\nProduct created:&quot;);</span>
+<span class="nc" id="L431">                System.out.println(&quot;  ID:          &quot; + product.getId());</span>
+<span class="nc" id="L432">                System.out.println(&quot;  Name:        &quot; + product.getName());</span>
+<span class="nc" id="L433">                System.out.println(&quot;  Description: &quot; + product.getDescription());</span>
+<span class="nc" id="L434">                System.out.println(&quot;  Size:        &quot; + product.getSize());</span>
+<span class="nc" id="L435">                System.out.println(&quot;  Category:    &quot; + product.getCategory());</span>
+<span class="nc" id="L436">                System.out.println(&quot;  Price:       &quot; + product.getPrice());</span>
+<span class="nc" id="L437">                System.out.println(&quot;  Temperature: &quot; + product.getTemperature());</span>
+<span class="nc" id="L438">            } catch (StoreException e) {</span>
+<span class="nc" id="L439">                System.out.println(&quot;&quot; + e.getAction() + &quot; failed: &quot; + e.getReason());</span>
+<span class="nc" id="L440">            } catch (Exception e) {</span>
+<span class="nc" id="L441">                System.out.println(&quot;Error creating product: &quot; + e.getMessage());</span>
+<span class="nc" id="L442">            }</span>
+<span class="nc" id="L443">            break;</span>
+        }
+
+        case &quot;0&quot;:
+<span class="nc" id="L447">            return;</span>
+
+        default:
+<span class="nc" id="L450">            System.out.println(&quot;Invalid choice. Returning to main menu.&quot;);</span>
+    }
+<span class="nc" id="L452">    }</span>
+
+    /**
+     * Customer operations - Uses StoreService directly
+     */
+    private static void manageCustomers() {
+<span class="nc" id="L458">        System.out.println(&quot;\n=== Customer Management (via StoreService) ===&quot;);</span>
+<span class="nc" id="L459">        System.out.println(&quot;1. View customer&quot;);</span>
+<span class="nc" id="L460">        System.out.println(&quot;2. Register new customer&quot;);</span>
+<span class="nc" id="L461">        System.out.println(&quot;0. Back to main menu&quot;);</span>
+<span class="nc" id="L462">        System.out.print(&quot;Enter your choice: &quot;);</span>
+
+<span class="nc" id="L464">        String choice = scanner.nextLine().trim();</span>
+
+<span class="nc bnc" id="L466" title="All 4 branches missed.">        switch (choice) {</span>
+        case &quot;1&quot;: {
+<span class="nc" id="L468">            System.out.print(&quot;Enter customer ID: &quot;);</span>
+<span class="nc" id="L469">            String customerId = scanner.nextLine().trim();</span>
+
+<span class="nc bnc" id="L471" title="All 2 branches missed.">            if (customerId.isEmpty()) {</span>
+<span class="nc" id="L472">                System.out.println(&quot;Customer ID is required.&quot;);</span>
+<span class="nc" id="L473">                return;</span>
+            }
+
+            try {
+<span class="nc" id="L477">                Customer customer = storeService.showCustomer(customerId, authHeader);</span>
+
+<span class="nc" id="L479">                System.out.println(&quot;\nCustomer found:&quot;);</span>
+<span class="nc" id="L480">                System.out.println(&quot;  ID:          &quot; + customer.getId());</span>
+<span class="nc" id="L481">                System.out.println(&quot;  First Name:  &quot; + customer.getFirstName());</span>
+<span class="nc" id="L482">                System.out.println(&quot;  Last Name:   &quot; + customer.getLastName());</span>
+<span class="nc" id="L483">                System.out.println(&quot;  Type:        &quot; + customer.getType());</span>
+<span class="nc" id="L484">                System.out.println(&quot;  Email:       &quot; + customer.getEmail());</span>
+<span class="nc" id="L485">                System.out.println(&quot;  Address:     &quot; + customer.getAccountAddress());</span>
+<span class="nc" id="L486">                System.out.println(&quot;  Store Loc:   &quot; +</span>
+<span class="nc bnc" id="L487" title="All 2 branches missed.">                        (customer.getStoreLocation() == null ?</span>
+<span class="nc" id="L488">                                &quot;None&quot; :</span>
+<span class="nc" id="L489">                                customer.getStoreLocation().getStoreId() +</span>
+<span class="nc" id="L490">                                        &quot; / Aisle &quot; + customer.getStoreLocation().getAisleId()));</span>
+<span class="nc" id="L491">                System.out.println(&quot;  Last Seen:   &quot; + customer.getLastSeen());</span>
+<span class="nc" id="L492">            } catch (StoreException e) {</span>
+<span class="nc" id="L493">                System.out.println(&quot;&quot; + e.getAction() + &quot; failed: &quot; + e.getReason());</span>
+<span class="nc" id="L494">            } catch (Exception e) {</span>
+<span class="nc" id="L495">                System.out.println(&quot; Error viewing customer: &quot; + e.getMessage());</span>
+<span class="nc" id="L496">            }</span>
+<span class="nc" id="L497">            break;</span>
+        }
+
+        case &quot;2&quot;: {
+<span class="nc" id="L501">            System.out.print(&quot;Enter customer ID: &quot;);</span>
+<span class="nc" id="L502">            String customerId = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L504">            System.out.print(&quot;Enter first name: &quot;);</span>
+<span class="nc" id="L505">            String firstName = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L507">            System.out.print(&quot;Enter last name: &quot;);</span>
+<span class="nc" id="L508">            String lastName = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L510">            System.out.print(&quot;Enter customer type (guest, registered): &quot;);</span>
+<span class="nc" id="L511">            String typeStr = scanner.nextLine().trim();</span>
+
+            CustomerType type;
+            try {
+<span class="nc" id="L515">                type = CustomerType.valueOf(typeStr.toLowerCase());</span>
+<span class="nc" id="L516">            } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L517">                System.out.println(&quot;Invalid customer type. Valid values: guest, registered&quot;);</span>
+<span class="nc" id="L518">                return;</span>
+<span class="nc" id="L519">            }</span>
+
+<span class="nc" id="L521">            System.out.print(&quot;Enter email: &quot;);</span>
+<span class="nc" id="L522">            String email = scanner.nextLine().trim();</span>
+
+<span class="nc" id="L524">            System.out.print(&quot;Enter account address: &quot;);</span>
+<span class="nc" id="L525">            String address = scanner.nextLine().trim();</span>
+
+            try {
+<span class="nc" id="L528">                Customer customer = storeService.provisionCustomer(</span>
+                        customerId,
+                        firstName,
+                        lastName,
+                        type,
+                        email,
+                        address,
+                        authHeader
+                );
+
+<span class="nc" id="L538">                System.out.println(&quot;\nCustomer registered:&quot;);</span>
+<span class="nc" id="L539">                System.out.println(&quot;  ID:          &quot; + customer.getId());</span>
+<span class="nc" id="L540">                System.out.println(&quot;  First Name:  &quot; + customer.getFirstName());</span>
+<span class="nc" id="L541">                System.out.println(&quot;  Last Name:   &quot; + customer.getLastName());</span>
+<span class="nc" id="L542">                System.out.println(&quot;  Type:        &quot; + customer.getType());</span>
+<span class="nc" id="L543">                System.out.println(&quot;  Email:       &quot; + customer.getEmail());</span>
+<span class="nc" id="L544">                System.out.println(&quot;  Address:     &quot; + customer.getAccountAddress());</span>
+
+<span class="nc" id="L546">            } catch (StoreException e) {</span>
+<span class="nc" id="L547">                System.out.println(&quot;&quot; + e.getAction() + &quot; failed: &quot; + e.getReason());</span>
+<span class="nc" id="L548">            } catch (Exception e) {</span>
+<span class="nc" id="L549">                System.out.println(&quot;Error registering customer: &quot; + e.getMessage());</span>
+<span class="nc" id="L550">            }</span>
+<span class="nc" id="L551">            break;</span>
+        }
+
+        case &quot;0&quot;:
+<span class="nc" id="L555">            return;</span>
+
+        default:
+<span class="nc" id="L558">            System.out.println(&quot;Invalid choice. Returning to main menu.&quot;);</span>
+    }
+
+<span class="nc" id="L561">    }</span>
+
+    private static void viewDocumentation() {
+<span class="nc" id="L564">        System.out.println(&quot;\n=== API Documentation ===&quot;);</span>
+<span class="nc" id="L565">        int port = ConfigLoader.getServerPort();</span>
+<span class="nc" id="L566">        System.out.println(&quot;API Documentation URL: http://localhost:&quot; + port + &quot;/api/docs&quot;);</span>
+<span class="nc" id="L567">        System.out.println(&quot;OpenAPI Spec: http://localhost:&quot; + port + &quot;/api/docs/openapi.yaml&quot;);</span>
+<span class="nc" id="L568">        System.out.println(&quot;\nArchitecture:&quot;);</span>
+<span class="nc" id="L569">        System.out.println(&quot;  - Store/User operations: REST API (HTTP)&quot;);</span>
+<span class="nc" id="L570">        System.out.println(&quot;  - Other operations: Direct StoreService access&quot;);</span>
+<span class="nc" id="L571">        System.out.println(&quot;\nPress Enter to continue...&quot;);</span>
+<span class="nc" id="L572">        scanner.nextLine();</span>
+<span class="nc" id="L573">    }</span>
+
+    /**
+     * Logout and switch to a different user
+     */
+    private static void logout() {
+<span class="nc" id="L579">        System.out.println(&quot;\n=== Logout ===&quot;);</span>
+<span class="nc" id="L580">        System.out.println(&quot;Logging out current user...&quot;);</span>
+
+        // Clear authentication
+<span class="nc" id="L583">        authHeader = null;</span>
+
+<span class="nc" id="L585">        System.out.println(&quot;[OK] Logged out successfully\n&quot;);</span>
+
+        // Re-authenticate with new credentials
+<span class="nc bnc" id="L588" title="All 2 branches missed.">        while (!authenticate()) {</span>
+<span class="nc" id="L589">            System.out.println(&quot;\nAuthentication failed. Please try again.\n&quot;);</span>
+        }
+<span class="nc" id="L591">    }</span>
+
+    /**
+     * Send HTTP request to REST API (for Store and User operations)
+     */
+    private static String sendRequest(String method, String endpoint, String body) throws Exception {
+<span class="nc" id="L597">        URL url = new URL(BASE_URL + endpoint);</span>
+<span class="nc" id="L598">        HttpURLConnection conn = (HttpURLConnection) url.openConnection();</span>
+<span class="nc" id="L599">        conn.setRequestMethod(method);</span>
+<span class="nc" id="L600">        conn.setRequestProperty(&quot;Authorization&quot;, authHeader);</span>
+<span class="nc" id="L601">        conn.setRequestProperty(&quot;Content-Type&quot;, &quot;application/json&quot;);</span>
+
+<span class="nc bnc" id="L603" title="All 2 branches missed.">        if (body != null) {</span>
+<span class="nc" id="L604">            conn.setDoOutput(true);</span>
+<span class="nc" id="L605">            try (OutputStream os = conn.getOutputStream()) {</span>
+<span class="nc" id="L606">                byte[] input = body.getBytes(StandardCharsets.UTF_8);</span>
+<span class="nc" id="L607">                os.write(input, 0, input.length);</span>
+            }
+        }
+
+<span class="nc" id="L611">        StringBuilder response = getStringBuilder(conn);</span>
+
+<span class="nc" id="L613">        return response.toString();</span>
+    }
+
+    private static StringBuilder getStringBuilder(HttpURLConnection conn) throws Exception {
+<span class="nc" id="L617">        int responseCode = conn.getResponseCode();</span>
+
+        BufferedReader reader;
+<span class="nc bnc" id="L620" title="All 4 branches missed.">        if (responseCode &gt;= 200 &amp;&amp; responseCode &lt; 300) {</span>
+<span class="nc" id="L621">            reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));</span>
+        } else {
+<span class="nc" id="L623">            reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));</span>
+        }
+
+<span class="nc" id="L626">        StringBuilder response = new StringBuilder();</span>
+        String line;
+<span class="nc bnc" id="L628" title="All 2 branches missed.">        while ((line = reader.readLine()) != null) {</span>
+<span class="nc" id="L629">            response.append(line);</span>
+        }
+<span class="nc" id="L631">        reader.close();</span>
+
+<span class="nc bnc" id="L633" title="All 4 branches missed.">        if (responseCode &lt; 200 || responseCode &gt;= 300) {</span>
+<span class="nc" id="L634">            throw new Exception(&quot;HTTP &quot; + responseCode + &quot;: &quot; + response);</span>
+        }
+<span class="nc" id="L636">        return response;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

@@ -189,6 +189,11 @@ public class SmartStoreApplication {
         userAuthzFilterMap.setFilterName("authorizationFilter");
         userAuthzFilterMap.addURLPattern("/api/v1/users/*");
         context.addFilterMap(userAuthzFilterMap);
+
+        FilterMap storeAuthzFilterMap = new FilterMap();
+        storeAuthzFilterMap.setFilterName("authorizationFilter");
+        storeAuthzFilterMap.addURLPattern("/api/v1/stores/*");
+        context.addFilterMap(storeAuthzFilterMap);
         // Step 6: Load sample data
         logger.info("Loading sample data...");
         loadSampleData(userService, storeService);

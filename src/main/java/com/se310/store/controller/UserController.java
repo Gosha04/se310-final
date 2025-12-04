@@ -74,11 +74,10 @@ public class UserController extends BaseServlet {
 
         if (email == null || email.isBlank() ||
             password == null || password.isBlank() ||
-            name == null || name.isBlank() ||
-            roleParam == null || roleParam.isBlank()) {
+            name == null || name.isBlank()) {
             sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, "Missing required parameters");
             return;
-        }
+}
 
         UserRole role = UserRole.USER;
         if (roleParam != null && !roleParam.isBlank()) {

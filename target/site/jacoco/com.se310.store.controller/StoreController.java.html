@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StoreController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">final</a> &gt; <a href="index.source.html" class="el_package">com.se310.store.controller</a> &gt; <span class="el_source">StoreController.java</span></div><h1>StoreController.java</h1><pre class="source lang-java linenums">package com.se310.store.controller;
+
+import com.se310.store.dto.StoreMapper;
+import com.se310.store.dto.StoreMapper.StoreDTO;
+import com.se310.store.model.Store;
+import com.se310.store.model.StoreException;
+import com.se310.store.service.StoreService;
+import com.se310.store.servlet.BaseServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
+import java.util.Collection;
+
+
+/**
+ * REST API controller for Store operations
+ * Implements full CRUD operations using DTO Pattern
+ *
+ * DTOs are used to:
+ * - Simplify API responses by excluding complex nested collections
+ * - Provide a clean separation between internal domain models and external API contracts
+ * - Improve JSON serialization performance by excluding transient fields
+ *
+ * @author  Sergey L. Sundukovskiy
+ * @version 1.0
+ * @since   2025-11-11
+ */
+public class StoreController extends BaseServlet {
+
+    //TODO: Implement Controller for Store operations, part of the MVC Pattern
+
+    private final StoreService storeService;
+
+<span class="nc" id="L35">    public StoreController(StoreService storeService) {</span>
+<span class="nc" id="L36">        this.storeService = storeService;</span>
+<span class="nc" id="L37">    }</span>
+
+    /**
+     * Handle GET requests - Returns StoreDTO objects
+     * - GET /api/v1/stores (no parameters) - Get all stores
+     * - GET /api/v1/stores/{storeId} - Get store by ID
+     */
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+<span class="nc" id="L46">        String storeId = extractResourceId(request);</span>
+<span class="nc" id="L47">        String token = request.getParameter(&quot;token&quot;);</span>
+
+<span class="nc bnc" id="L49" title="All 4 branches missed.">        if (storeId == null || storeId.isBlank()) {</span>
+<span class="nc" id="L50">            Collection&lt;Store&gt; stores = storeService.getAllStores();</span>
+<span class="nc" id="L51">            var dtoList = StoreMapper.toDTOList(stores);</span>
+<span class="nc" id="L52">            sendJsonResponse(response, dtoList, HttpServletResponse.SC_OK);</span>
+<span class="nc" id="L53">            return;</span>
+        }
+
+        try {
+<span class="nc" id="L57">            Store store = storeService.showStore(storeId, token);</span>
+<span class="nc" id="L58">            StoreDTO storeDTO = StoreMapper.toDTO(store);</span>
+<span class="nc" id="L59">            sendJsonResponse(response, storeDTO, HttpServletResponse.SC_OK);</span>
+
+<span class="nc" id="L61">        } catch (StoreException ex) {</span>
+<span class="nc" id="L62">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());</span>
+        }
+<span class="nc" id="L64">        catch (Exception ex) {</span>
+<span class="nc" id="L65">            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, &quot;Internal server error&quot;);</span>
+<span class="nc" id="L66">        }</span>
+<span class="nc" id="L67">    }</span>
+
+    /**
+     * Handle POST requests - Create new store, returns StoreDTO
+     * POST /api/v1/stores?storeId=xxx&amp;name=xxx&amp;address=xxx
+     */
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+<span class="nc" id="L76">        String storeId = request.getParameter(&quot;storeId&quot;);</span>
+<span class="nc" id="L77">        String name = request.getParameter(&quot;name&quot;);       </span>
+<span class="nc" id="L78">        String address = request.getParameter(&quot;address&quot;);</span>
+<span class="nc" id="L79">        String token = request.getParameter(&quot;token&quot;);</span>
+
+<span class="nc bnc" id="L81" title="All 6 branches missed.">        if (storeId == null || storeId.isBlank()</span>
+<span class="nc bnc" id="L82" title="All 4 branches missed.">                || name == null || name.isBlank()</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">                || address == null || address.isBlank()) {</span>
+
+<span class="nc" id="L85">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,</span>
+                    &quot;Missing required parameters: storeId, name, and address are required.&quot;);
+<span class="nc" id="L87">            return;</span>
+        }
+
+        try {
+<span class="nc" id="L91">            Store store = storeService.provisionStore(storeId, name, address, token);</span>
+<span class="nc" id="L92">            StoreDTO storeDTO = StoreMapper.toDTO(store);</span>
+<span class="nc" id="L93">            sendJsonResponse(response, storeDTO, HttpServletResponse.SC_CREATED);</span>
+
+<span class="nc" id="L95">        } catch (StoreException ex) {</span>
+<span class="nc" id="L96">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());</span>
+<span class="nc" id="L97">        } catch (Exception ex) {</span>
+<span class="nc" id="L98">            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, &quot;Internal server error&quot;);</span>
+<span class="nc" id="L99">        }</span>
+<span class="nc" id="L100">    }</span>
+
+    /**
+     * Handle PUT requests - Update existing store, returns StoreDTO
+     * PUT /api/v1/stores/{storeId}?description=xxx&amp;address=xxx
+     */
+    @Override
+    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+<span class="nc" id="L109">        String storeId = extractResourceId(request);</span>
+
+<span class="nc bnc" id="L111" title="All 4 branches missed.">        if (storeId == null || storeId.isBlank()) {</span>
+<span class="nc" id="L112">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, &quot;Missing storeId in the URL path.&quot;);</span>
+<span class="nc" id="L113">            return;</span>
+        }
+<span class="nc" id="L115">        String description = request.getParameter(&quot;description&quot;);</span>
+<span class="nc" id="L116">        String address = request.getParameter(&quot;address&quot;);</span>
+
+<span class="nc bnc" id="L118" title="All 6 branches missed.">        if ((description == null || description.isBlank())</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">                &amp;&amp; (address == null || address.isBlank())) {</span>
+<span class="nc" id="L120">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST,</span>
+                    &quot;At least one of description or address parameters must be provided for update.&quot;);
+<span class="nc" id="L122">            return;</span>
+        }
+
+        try {
+<span class="nc" id="L126">            Store store = storeService.updateStore(storeId, description, address);</span>
+<span class="nc" id="L127">            StoreDTO storeDTO = StoreMapper.toDTO(store);</span>
+<span class="nc" id="L128">            sendJsonResponse(response, storeDTO, HttpServletResponse.SC_OK);</span>
+
+<span class="nc" id="L130">        } catch (StoreException ex) {</span>
+<span class="nc" id="L131">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());</span>
+<span class="nc" id="L132">        } catch (Exception ex) {</span>
+<span class="nc" id="L133">            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, &quot;Unexpectd error updating store&quot;);</span>
+<span class="nc" id="L134">        }</span>
+
+<span class="nc" id="L136">    }</span>
+
+    /**
+     * Handle DELETE requests - Delete store
+     * DELETE /api/v1/stores/{storeId}
+     */
+    @Override
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+<span class="nc" id="L145">        String storeId = extractResourceId(request);</span>
+
+<span class="nc bnc" id="L147" title="All 4 branches missed.">        if (storeId == null || storeId.isBlank()) {</span>
+<span class="nc" id="L148">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, &quot;Missing storeId in the URL path.&quot;);</span>
+<span class="nc" id="L149">            return;</span>
+        }
+
+        try {
+<span class="nc" id="L153">            storeService.deleteStore(storeId);</span>
+<span class="nc" id="L154">            response.setStatus(HttpServletResponse.SC_NO_CONTENT);</span>
+
+<span class="nc" id="L156">        } catch (StoreException ex) {</span>
+<span class="nc" id="L157">            sendErrorResponse(response, HttpServletResponse.SC_BAD_REQUEST, ex.getMessage());</span>
+<span class="nc" id="L158">        } catch (Exception ex) {</span>
+<span class="nc" id="L159">            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, &quot;Unexpected error deleting store&quot;);</span>
+<span class="nc" id="L160">        }</span>
+<span class="nc" id="L161">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
